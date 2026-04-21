@@ -1,5 +1,4 @@
 require("dotenv").config();
-console.log("API KEY:", process.env.GEMINI_API_KEY);
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -9,18 +8,17 @@ const fetch = require("node-fetch");
 
 const app = express();
 
-// middleware
+// ================= MIDDLEWARE =================
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
-// 🔥 MongoDB connection (IMPORTANT FIX)
+// ================= MONGODB =================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected 🔥"))
-  .catch((err) => console.log(err));
+  .catch((err) => console.log("Mongo Error:", err));
 
 // ================= MODELS =================
-
 const User = mongoose.model("User", {
   name: String,
   email: String,
@@ -46,7 +44,6 @@ const File = mongoose.model("File", {
 });
 
 // ================= FILE UPLOAD =================
-
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -58,167 +55,233 @@ const upload = multer({ storage });
 
 // ================= ROUTES =================
 
-// ✅ Test route
+// Test route
 app.get("/", (req, res) => {
   res.send("Server running 🚀");
 });
 
-// ✅ NEW ROUTE (IMPORTANT 🔥)
+// ✅ USERS API
 app.get("/api/users", async (req, res) => {
-  const users = await User.find();
-  res.json(users);
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Signup
+// Signup
 app.post("/signup", async (req, res) => {
-  const { name, email, password } = req.body;
+  try {
+    const { name, email, password } = req.body;
 
-  const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ message: "User exists ❌" });
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "User exists ❌" });
 
-  await new User({ name, email, password }).save();
-  res.json({ message: "Signup success 🔥" });
+    await new User({ name, email, password }).save();
+    res.json({ message: "Signup success 🔥" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Login
+// Login
 app.post("/login", async (req, res) => {
-  const user = await User.findOne(req.body);
+  try {
+    const user = await User.findOne(req.body);
 
-  if (!user) return res.status(400).json({ message: "Invalid ❌" });
+    if (!user) return res.status(400).json({ message: "Invalid ❌" });
 
-  res.json({ message: "Login success 🔥", user });
+    res.json({ message: "Login success 🔥", user });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Create Group
+// Create Group
 app.post("/create-group", async (req, res) => {
-  const { name, email } = req.body;
+  try {
+    const { name, email } = req.body;
 
-  const group = await new Group({
-    name,
-    members: [email],
-    requests: [],
-    tracker: [],
-  }).save();
+    const group = await new Group({
+      name,
+      members: [email],
+      requests: [],
+      tracker: [],
+    }).save();
 
-  res.json({ group });
+    res.json({ group });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Join Group
+// Join Group
 app.post("/join-group", async (req, res) => {
-  const { groupId, email } = req.body;
+  try {
+    const { groupId, email } = req.body;
 
-  const g = await Group.findById(groupId);
+    const g = await Group.findById(groupId);
 
-  if (g.members.includes(email))
-    return res.json({ message: "Already joined ✅" });
+    if (g.members.includes(email))
+      return res.json({ message: "Already joined ✅" });
 
-  if (g.requests.includes(email))
-    return res.json({ message: "Request already sent ⏳" });
+    if (g.requests.includes(email))
+      return res.json({ message: "Request already sent ⏳" });
 
-  g.requests.push(email);
-  await g.save();
+    g.requests.push(email);
+    await g.save();
 
-  res.json({ message: "Request sent 🔥" });
+    res.json({ message: "Request sent 🔥" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Approve
+// Approve
 app.post("/approve", async (req, res) => {
-  const { groupId, email } = req.body;
+  try {
+    const { groupId, email } = req.body;
 
-  const g = await Group.findById(groupId);
+    const g = await Group.findById(groupId);
 
-  g.requests = g.requests.filter((r) => r !== email);
-  if (!g.members.includes(email)) g.members.push(email);
+    g.requests = g.requests.filter((r) => r !== email);
+    if (!g.members.includes(email)) g.members.push(email);
 
-  await g.save();
+    await g.save();
 
-  res.json({ message: "Approved ✅" });
+    res.json({ message: "Approved ✅" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Leave
+// Leave Group
 app.post("/leave-group", async (req, res) => {
-  const { groupId, email } = req.body;
+  try {
+    const { groupId, email } = req.body;
 
-  const g = await Group.findById(groupId);
-  g.members = g.members.filter((m) => m !== email);
+    const g = await Group.findById(groupId);
+    g.members = g.members.filter((m) => m !== email);
 
-  await g.save();
+    await g.save();
 
-  res.json({ message: "Left group" });
+    res.json({ message: "Left group" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Tracker
+// Tracker
 app.post("/track", async (req, res) => {
-  const { groupId, email, hours } = req.body;
+  try {
+    const { groupId, email, hours } = req.body;
 
-  const g = await Group.findById(groupId);
-  g.tracker.push({ email, hours });
+    const g = await Group.findById(groupId);
+    g.tracker.push({ email, hours });
 
-  await g.save();
+    await g.save();
 
-  res.json({ message: "Tracked" });
+    res.json({ message: "Tracked" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Chat send
+// Chat send
 app.post("/chat", async (req, res) => {
-  const { groupId, message } = req.body;
+  try {
+    const { groupId, message } = req.body;
 
-  await new Chat({ groupId, message }).save();
+    await new Chat({ groupId, message }).save();
 
-  res.json({ message: "Sent" });
+    res.json({ message: "Sent" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Chat get
+// Chat get
 app.get("/chat/:id", async (req, res) => {
-  const data = await Chat.find({ groupId: req.params.id });
-  res.json(data);
+  try {
+    const data = await Chat.find({ groupId: req.params.id });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Upload
+// Upload
 app.post("/upload", upload.single("file"), async (req, res) => {
-  const file = await new File({
-    groupId: req.body.groupId,
-    name: req.file.originalname,
-    path: req.file.path,
-  }).save();
+  try {
+    const file = await new File({
+      groupId: req.body.groupId,
+      name: req.file.originalname,
+      path: req.file.path,
+    }).save();
 
-  res.json({ message: "Uploaded", file });
+    res.json({ message: "Uploaded", file });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Get files
+// Get files
 app.get("/files/:id", async (req, res) => {
-  const files = await File.find({ groupId: req.params.id });
-  res.json(files);
+  try {
+    const files = await File.find({ groupId: req.params.id });
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Get single group
+// Get group
 app.get("/group/:id", async (req, res) => {
-  const g = await Group.findById(req.params.id);
-  res.json({ group: g });
+  try {
+    const g = await Group.findById(req.params.id);
+    res.json({ group: g });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Get all groups
+// Get all groups
 app.get("/groups", async (req, res) => {
-  const g = await Group.find();
-  res.json({ groups: g });
+  try {
+    const g = await Group.find();
+    res.json({ groups: g });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 🔥 Delete
+// Delete group
 app.delete("/delete-group/:id", async (req, res) => {
-  await Group.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
+  try {
+    await Group.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// ================= 🤖 AI =================
-
+// ================= AI =================
 app.post("/ai", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    const API_KEY = process.env.GEMINI_API_KEY;
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -242,7 +305,8 @@ app.post("/ai", async (req, res) => {
 });
 
 // ================= START =================
+const PORT = process.env.PORT || 5000;
 
-app.listen(5000, () => {
-  console.log("Server started on port 5000 🚀");
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT} 🚀`);
 });
