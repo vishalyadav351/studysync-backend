@@ -1,5 +1,5 @@
 require("dotenv").config();
-console.log("API KEY:", process.env.GEMINI_API_KEY); // Ensure the API key is loaded properly
+console.log("API KEY:", process.env.GEMINI_API_KEY);
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -14,8 +14,8 @@ app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
-// 🔥 MongoDB connection
-mongoose.connect("mongodb://localhost:27017/studysync")
+// 🔥 MongoDB connection (IMPORTANT FIX)
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected 🔥"))
   .catch((err) => console.log(err));
 
@@ -58,9 +58,15 @@ const upload = multer({ storage });
 
 // ================= ROUTES =================
 
-// test route
+// ✅ Test route
 app.get("/", (req, res) => {
   res.send("Server running 🚀");
+});
+
+// ✅ NEW ROUTE (IMPORTANT 🔥)
+app.get("/api/users", async (req, res) => {
+  const users = await User.find();
+  res.json(users);
 });
 
 // 🔥 Signup
